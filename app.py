@@ -20,15 +20,7 @@ html, body {
     background: radial-gradient(circle at 20% 20%, #0f172a, #020617);
     color: #e2e8f0;
 }
-.glass {
-    background: rgba(255,255,255,0.06);
-    backdrop-filter: blur(18px);
-    border-radius: 18px;
-    padding: 18px;
-    border: 1px solid rgba(255,255,255,0.08);
-    box-shadow: 0 0 40px rgba(0,255,255,0.08);
-    margin-bottom: 16px;
-}
+
 .stButton > button {
     background: linear-gradient(135deg, #06b6d4, #3b82f6);
     color: white;
