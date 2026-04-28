@@ -293,8 +293,11 @@ if st.session_state.path:
 
             
             with placeholder.container():
-                st.plotly_chart(draw_graph(packets), use_container_width=True)
-
+    st.plotly_chart(
+        draw_graph(packets),
+        use_container_width=True,
+        key=f"anim_{t}"
+    )
             path_latencies = []
             for u,v in zip(st.session_state.path, st.session_state.path[1:]):
                 path_latencies.append(G[u][v]["latency"])
@@ -307,7 +310,11 @@ if st.session_state.path:
 
         
         with placeholder.container():
-            st.plotly_chart(draw_graph(packets), use_container_width=True)
+    st.plotly_chart(
+        draw_graph(packets),
+        use_container_width=True,
+        key=f"anim_{t}"
+    )
 
     st.markdown('</div>', unsafe_allow_html=True)
 
