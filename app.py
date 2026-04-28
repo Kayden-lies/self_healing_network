@@ -49,10 +49,24 @@ if "G" not in st.session_state:
 G = st.session_state.G
 
 # ---------------- DEMO MODE ---------------- #
-with st.container():
-    st.markdown('<div class="glass">', unsafe_allow_html=True)
-    demo_mode = st.toggle("Demo Mode (force visible rerouting)")
-    st.markdown('</div>', unsafe_allow_html=True)
+st.markdown('<div class="glass">', unsafe_allow_html=True)
+
+col1, col2 = st.columns([3, 1])
+
+with col1:
+    st.markdown("""
+    <div style="font-weight:600; font-size:16px;">
+        Demo Mode
+    </div>
+    <div style="font-size:13px; color:#94a3b8; margin-top:4px;">
+        Forces faults on active path to demonstrate visible rerouting behavior
+    </div>
+    """, unsafe_allow_html=True)
+
+with col2:
+    demo_mode = st.toggle("", label_visibility="collapsed")
+
+st.markdown('</div>', unsafe_allow_html=True)
 # ---------------- HEALTH ---------------- #
 def get_network_health(G):
     faults = sum(1 for u,v in G.edges() if G[u][v].get("fault"))
