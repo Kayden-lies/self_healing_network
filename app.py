@@ -48,7 +48,7 @@ if "G" not in st.session_state:
 
 G = st.session_state.G
 
-# ---------------- DEMO MODE (NO CARD) ---------------- #
+# ---------------- DEMO MODE ---------------- #
 col1, col2 = st.columns([3, 1])
 
 with col1:
@@ -84,7 +84,7 @@ def get_safe_graph(G):
             H[u][v]["latency"] *= 10
     return H
 
-# ---------------- FAULTS ---------------- #
+# ---------------- FAULT ---------------- #
 def inject_fault_on_path(G, path):
     if len(path) < 2:
         return None
@@ -118,7 +118,7 @@ st.markdown("""
 <p style='color:#94a3b8;'>AI-powered anomaly detection & autonomous rerouting</p>
 """, unsafe_allow_html=True)
 
-# ================= CONTROLS (NO CARD) ================= #
+# ---------------- CONTROLS ---------------- #
 nodes = list(G.nodes())
 
 c1, c2, c3 = st.columns(3)
@@ -153,10 +153,10 @@ with a1:
 with a2:
     if st.button("Inject Fault"):
         if demo_mode and st.session_state.path:
-            edge = inject_fault_on_path(G, st.session_state.path)
+            inject_fault_on_path(G, st.session_state.path)
         else:
-            edge = inject_fault(G, 2)
-        log_event(st.session_state.logs, f"Fault injected: {edge}")
+            inject_fault(G, 2)
+        log_event(st.session_state.logs, "Fault injected")
         st.rerun()
 
 with a3:
@@ -168,34 +168,19 @@ with a3:
 
 with a4:
     if st.button("Self Heal"):
-        G.remove_edges_from([
-            (u,v) for u,v in G.edges() if G[u][v].get("fault")
-        ])
+        G.remove_edges_from([(u,v) for u,v in G.edges() if G[u][v].get("fault")])
         log_event(st.session_state.logs, "Network healed")
         st.rerun()
 
-# ---------------- AUTO REROUTE ---------------- #
+# ---------------- AUTO PATH ---------------- #
 safe_G = get_safe_graph(G)
 try:
     st.session_state.path = shortest_path(safe_G, source, target)
 except:
     st.session_state.path = []
 
-# ---------------- PATH INFO ---------------- #
-if st.session_state.path:
-    affected = False
-    for u, v in zip(st.session_state.path, st.session_state.path[1:]):
-        if G[u][v].get("fault") or G[u][v].get("anomaly"):
-            affected = True
-    if not affected:
-        st.info("Network degraded, but current path remains optimal")
-
 # ---------------- GRAPH ---------------- #
 pos = nx.spring_layout(G, seed=42)
-
-def latency_to_color(latency):
-    t = min(latency / 100, 1)
-    return f"rgb({int(255*t)}, {int(255*(1-t))}, 120)"
 
 def draw_graph(packet_positions=None):
     traces = []
@@ -204,28 +189,14 @@ def draw_graph(packet_positions=None):
         x0,y0 = pos[u]
         x1,y1 = pos[v]
 
-        latency = G[u][v]["latency"]
-        color = latency_to_color(latency)
+        color = "gray"
         width = 2
 
         if G[u][v].get("fault"):
-            pulse = abs(np.sin(time.time()*3))*255
-            color = f"rgb({int(pulse)},50,50)"
+            color = "red"
             width = 5
-        elif G[u][v].get("anomaly"):
-            color = "yellow"
-            width = 4
 
-        if st.session_state.path:
-            path_edges = list(zip(st.session_state.path, st.session_state.path[1:]))
-            if (u,v) in path_edges or (v,u) in path_edges:
-                width = 6
-
-        traces.append(go.Scatter(
-            x=[x0,x1], y=[y0,y1],
-            mode="lines",
-            line=dict(color=color,width=width,shape="spline")
-        ))
+        traces.append(go.Scatter(x=[x0,x1], y=[y0,y1], mode="lines", line=dict(color=color,width=width)))
 
     traces.append(go.Scatter(
         x=[pos[n][0] for n in G.nodes()],
@@ -236,10 +207,64 @@ def draw_graph(packet_positions=None):
         marker=dict(size=25,color="#22d3ee")
     ))
 
-    fig = go.Figure(traces)
-    fig.update_layout(showlegend=False, plot_bgcolor="rgba(0,0,0,0)")
-    return fig
+    if packet_positions and st.session_state.path:
+        path = st.session_state.path
+        for p in packet_positions:
+            i = int(p*(len(path)-1))
+            t = (p*(len(path)-1))%1
+            if i < len(path)-1:
+                n1,n2 = path[i], path[i+1]
+                x = pos[n1][0]*(1-t)+pos[n2][0]*t
+                y = pos[n1][1]*(1-t)+pos[n2][1]*t
+                traces.append(go.Scatter(x=[x],y=[y],mode="markers",marker=dict(size=10,color="#00ffff")))
+
+    return go.Figure(traces)
 
 st.markdown('<div class="glass">', unsafe_allow_html=True)
 st.plotly_chart(draw_graph(), use_container_width=True)
 st.markdown('</div>', unsafe_allow_html=True)
+
+# ---------------- SIMULATION ---------------- #
+if st.session_state.path:
+
+    st.markdown('<div class="glass">', unsafe_allow_html=True)
+    st.markdown("### Network Traffic Simulation")
+
+    speed = st.slider("Speed", 0.01, 0.2, 0.05)
+    autoplay = st.toggle("Auto Play")
+
+    placeholder = st.empty()
+    base = np.linspace(0,1,5)
+
+    if autoplay:
+        for t in np.arange(0,1,speed):
+            packets = [(p+t)%1 for p in base]
+            with placeholder.container():
+                st.plotly_chart(draw_graph(packets), use_container_width=True, key=f"anim_{t}")
+            time.sleep(0.1)
+    else:
+        t = st.slider("Step", 0.0, 1.0, 0.0)
+        packets = [(p+t)%1 for p in base]
+        with placeholder.container():
+            st.plotly_chart(draw_graph(packets), use_container_width=True, key=f"step_{t}")
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# ---------------- AI PANEL ---------------- #
+st.markdown("### AI Analysis")
+st.write(st.session_state.explanation or "No anomalies")
+
+faults = sum(1 for u,v in G.edges() if G[u][v].get("fault"))
+anomalies = sum(1 for u,v in G.edges() if G[u][v].get("anomaly"))
+score = max(0,100-(faults*15+anomalies*10))
+
+st.progress(score/100)
+st.caption(f"Network Stability: {score}%")
+
+# ---------------- LEGEND ---------------- #
+st.markdown("""
+### Legend
+- Cyan → Packet flow  
+- Red → Fault  
+- Yellow → Anomaly  
+""")
