@@ -48,9 +48,7 @@ if "G" not in st.session_state:
 
 G = st.session_state.G
 
-# ---------------- DEMO MODE ---------------- #
-st.markdown('<div class="glass">', unsafe_allow_html=True)
-
+# ---------------- DEMO MODE (NO CARD) ---------------- #
 col1, col2 = st.columns([3, 1])
 
 with col1:
@@ -66,7 +64,6 @@ with col1:
 with col2:
     demo_mode = st.toggle("", label_visibility="collapsed")
 
-st.markdown('</div>', unsafe_allow_html=True)
 # ---------------- HEALTH ---------------- #
 def get_network_health(G):
     faults = sum(1 for u,v in G.edges() if G[u][v].get("fault"))
@@ -79,7 +76,7 @@ def get_network_health(G):
     else:
         return "Critical", "#ef4444"
 
-# ---------------- SAFE GRAPH (PENALTY MODE) ---------------- #
+# ---------------- SAFE GRAPH ---------------- #
 def get_safe_graph(G):
     H = G.copy()
     for u, v in H.edges():
@@ -121,10 +118,8 @@ st.markdown("""
 <p style='color:#94a3b8;'>AI-powered anomaly detection & autonomous rerouting</p>
 """, unsafe_allow_html=True)
 
-# ================= CONTROLS ================= #
+# ================= CONTROLS (NO CARD) ================= #
 nodes = list(G.nodes())
-
-st.markdown('<div class="glass">', unsafe_allow_html=True)
 
 c1, c2, c3 = st.columns(3)
 
@@ -179,8 +174,6 @@ with a4:
         log_event(st.session_state.logs, "Network healed")
         st.rerun()
 
-st.markdown('</div>', unsafe_allow_html=True)
-
 # ---------------- AUTO REROUTE ---------------- #
 safe_G = get_safe_graph(G)
 try:
@@ -188,7 +181,7 @@ try:
 except:
     st.session_state.path = []
 
-# ---------------- PATH IMPACT INFO ---------------- #
+# ---------------- PATH INFO ---------------- #
 if st.session_state.path:
     affected = False
     for u, v in zip(st.session_state.path, st.session_state.path[1:]):
@@ -243,24 +236,6 @@ def draw_graph(packet_positions=None):
         marker=dict(size=25,color="#22d3ee")
     ))
 
-    if packet_positions and st.session_state.path:
-        path = st.session_state.path
-        for prog in packet_positions:
-            for trail in np.linspace(0,0.2,4):
-                p=(prog-trail)%1
-                i=int(p*(len(path)-1))
-                t=(p*(len(path)-1))%1
-                if i < len(path)-1:
-                    n1,n2=path[i],path[i+1]
-                    x=pos[n1][0]*(1-t)+pos[n2][0]*t
-                    y=pos[n1][1]*(1-t)+pos[n2][1]*t
-                    traces.append(go.Scatter(
-                        x=[x],y=[y],
-                        mode="markers",
-                        marker=dict(size=8,color=f"rgba(0,255,255,{1-trail*4})"),
-                        hoverinfo="none"
-                    ))
-
     fig = go.Figure(traces)
     fig.update_layout(showlegend=False, plot_bgcolor="rgba(0,0,0,0)")
     return fig
@@ -268,86 +243,3 @@ def draw_graph(packet_positions=None):
 st.markdown('<div class="glass">', unsafe_allow_html=True)
 st.plotly_chart(draw_graph(), use_container_width=True)
 st.markdown('</div>', unsafe_allow_html=True)
-
-# ---------------- SIMULATION ---------------- #
-if st.session_state.path:
-
-    st.markdown('<div class="glass">', unsafe_allow_html=True)
-    st.markdown("### Network Traffic Simulation")
-
-    colA, colB, colC = st.columns(3)
-
-    with colA:
-        speed = st.slider("Speed", 0.01, 0.2, 0.05)
-    with colB:
-        step = st.slider("Step Position", 0.0, 1.0, 0.0)
-    with colC:
-        autoplay = st.toggle("Auto Play")
-
-    placeholder = st.empty()
-    base = np.linspace(0,1,6)
-
-    if autoplay:
-        for t in np.arange(0,1,speed):
-
-            old_path = st.session_state.path.copy()
-
-            safe_G = get_safe_graph(G)
-            try:
-                new_path = shortest_path(safe_G, source, target)
-            except:
-                new_path = []
-
-            if new_path != old_path:
-                log_event(st.session_state.logs, "Live reroute triggered")
-
-            st.session_state.path = new_path
-
-            packets = [(p+t)%1 for p in base]
-
-            # ✅ FIXED
-            with placeholder.container():
-                st.plotly_chart(
-                    draw_graph(packets),
-                    use_container_width=True,
-                    key=f"anim_{t}"
-                )
-
-            path_latencies = []
-            for u,v in zip(st.session_state.path, st.session_state.path[1:]):
-                path_latencies.append(G[u][v]["latency"])
-
-            delay = min(np.mean(path_latencies)/400, 0.4) if path_latencies else 0.1
-            time.sleep(delay)
-
-    else:
-        packets = [(p+step)%1 for p in base]
-
-        # ✅ FIXED
-        with placeholder.container():
-            st.plotly_chart(
-                draw_graph(packets),
-                use_container_width=True,
-                key=f"step_{step}"
-            )
-
-    st.markdown('</div>', unsafe_allow_html=True)
-# ---------------- AI PANEL ---------------- #
-st.markdown("### AI Analysis")
-st.write(st.session_state.explanation or "No anomalies")
-
-faults = sum(1 for u,v in G.edges() if G[u][v].get("fault"))
-anomalies = sum(1 for u,v in G.edges() if G[u][v].get("anomaly"))
-score = max(0,100-(faults*15+anomalies*10))
-
-st.progress(score/100)
-st.caption(f"Network Stability: {score}%")
-
-# ---------------- LEGEND ---------------- #
-st.markdown("""
-### Legend
-- Cyan → Packet flow  
-- Red (pulsing) → Fault  
-- Yellow → Anomaly  
-- Gradient → Latency  
-""")
