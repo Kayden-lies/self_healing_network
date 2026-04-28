@@ -219,29 +219,44 @@ st.markdown('</div>', unsafe_allow_html=True)
 # ---------------- SIMULATION ---------------- #
 if st.session_state.path:
 
-    st.markdown('<div class="glass">', unsafe_allow_html=True)
     st.markdown("### Network Traffic Simulation")
 
-    speed = st.slider("Speed", 0.01, 0.2, 0.05)
-    autoplay = st.toggle("Auto Play")
+    col1, col2, col3 = st.columns([2, 2, 1])
+
+    with col1:
+        speed = st.slider("Speed", 0.01, 0.2, 0.05)
+
+    with col2:
+        step = st.slider("Step", 0.0, 1.0, 0.0)
+
+    with col3:
+        autoplay = st.toggle("Auto")
 
     placeholder = st.empty()
     base = np.linspace(0,1,5)
 
     if autoplay:
-        for t in np.arange(0,1,speed):
-            packets = [(p+t)%1 for p in base]
+        for t in np.arange(0, 1, speed):
+            packets = [(p + t) % 1 for p in base]
+
             with placeholder.container():
-                st.plotly_chart(draw_graph(packets), use_container_width=True, key=f"anim_{t}")
+                st.plotly_chart(
+                    draw_graph(packets),
+                    use_container_width=True,
+                    key=f"anim_{t}"
+                )
+
             time.sleep(0.1)
+
     else:
-        t = st.slider("Step", 0.0, 1.0, 0.0)
-        packets = [(p+t)%1 for p in base]
+        packets = [(p + step) % 1 for p in base]
+
         with placeholder.container():
-            st.plotly_chart(draw_graph(packets), use_container_width=True, key=f"step_{t}")
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
+            st.plotly_chart(
+                draw_graph(packets),
+                use_container_width=True,
+                key=f"step_{step}"
+            )
 # ---------------- AI PANEL ---------------- #
 st.markdown("### AI Analysis")
 st.write(st.session_state.explanation or "No anomalies")
