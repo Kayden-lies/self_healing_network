@@ -229,7 +229,6 @@ def draw_graph(packet_positions=None):
         marker=dict(size=25,color="#22d3ee")
     ))
 
-    # PACKETS + TRAIL
     if packet_positions and st.session_state.path:
         path = st.session_state.path
         for prog in packet_positions:
@@ -291,21 +290,24 @@ if st.session_state.path:
             st.session_state.path = new_path
 
             packets=[(p+t)%1 for p in base]
-            placeholder.plotly_chart(draw_graph(packets),use_container_width=True)
+
+            
+            with placeholder.container():
+                st.plotly_chart(draw_graph(packets), use_container_width=True)
 
             path_latencies = []
             for u,v in zip(st.session_state.path, st.session_state.path[1:]):
                 path_latencies.append(G[u][v]["latency"])
 
-            if path_latencies:
-                delay = min(np.mean(path_latencies)/400, 0.4)
-            else:
-                delay = 0.1
-
+            delay = min(np.mean(path_latencies)/400, 0.4) if path_latencies else 0.1
             time.sleep(delay)
+
     else:
         packets=[(p+step)%1 for p in base]
-        placeholder.plotly_chart(draw_graph(packets),use_container_width=True)
+
+        
+        with placeholder.container():
+            st.plotly_chart(draw_graph(packets), use_container_width=True)
 
     st.markdown('</div>', unsafe_allow_html=True)
 
